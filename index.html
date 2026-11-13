@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Focus">
+<title>Ultradian Focus</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; }
+  body {
+    display:flex; align-items:center; justify-content:center;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;
+    background:#000; color:#f5f5f7;
+    transition:background 1.2s ease;
+    min-height:100dvh; padding:48px 32px;
+    -webkit-user-select:none; user-select:none;
+  }
+  body.resting { background:#050b07; }
+  .app { width:min(560px,100%); text-align:center; }
+
+  .phase {
+    font-size:12px; letter-spacing:4px; text-transform:uppercase;
+    color:#6e6e73; font-weight:500;
+  }
+  .phase .dot {
+    display:inline-block; width:6px; height:6px; border-radius:50%;
+    margin-right:10px; background:#ff4d2e; vertical-align:1px;
+    animation:breathe 4s ease-in-out infinite;
+  }
+  body.resting .phase .dot { background:#30d158; }
+  @keyframes breathe { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+  .ring { width:min(320px,72vw); aspect-ratio:1; margin:36px auto; position:relative; }
+  .ring svg { width:100%; height:100%; transform:rotate(-90deg); display:block; }
+  .ring circle { fill:none; stroke-width:3; }
+  .track { stroke:rgba(255,255,255,.07); }
+  .prog { stroke:#ff4d2e; transition:stroke-dashoffset 1s linear, stroke 1s ease; }
+  body.resting .prog { stroke:#30d158; }
+  .overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  .time {
+    font-size:clamp(72px,19vw,120px); font-weight:100; letter-spacing:-4px;
+    font-variant-numeric:tabular-nums; color:#f5f5f7;
+  }
+  .time span { font-size:.42em; color:#48484d; font-weight:200; }
+
+  .controls { display:flex; gap:14px; justify-content:center; margin-top:8px; }
+  button {
+    border:none; border-radius:999px; cursor:pointer; font-family:inherit;
+    transition:opacity .2s, transform .1s, background .3s;
+  }
+  button:active { transform:scale(.96); }
+  .primary {
+    padding:16px 52px; font-size:17px; font-weight:600;
+    background:#f5f5f7; color:#000;
+  }
+  .primary:hover { opacity:.85; }
+  .ghost {
+    padding:16px 32px; font-size:17px; font-weight:400;
+    background:transparent; color:#6e6e73;
+  }
+  .ghost:hover { color:#f5f5f7; }
+
+  .binaural { margin-top:28px; }
+  .binaural button {
+    padding:10px 24px; font-size:13px; font-weight:500; letter-spacing:.3px;
+    background:transparent; color:#6e6e73; border:1px solid rgba(255,255,255,.12);
+  }
+  .binaural button.on { color:#30d158; border-color:rgba(48,209,88,.5); }
+  .bininfo { margin-top:10px; font-size:12px; color:#3a3a3e; letter-spacing:.3px; }
+
+  .meta {
+    margin-top:44px; padding-top:32px; border-top:1px solid rgba(255,255,255,.06);
+    display:flex; justify-content:center; align-items:center; gap:40px; flex-wrap:wrap;
+  }
+  .stat b { display:block; font-size:22px; font-weight:300; color:#f5f5f7; font-variant-numeric:tabular-nums; }
+  .stat span { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#48484d; font-weight:500; }
+  .sep { width:1px; height:28px; background:rgba(255,255,255,.08); }
+  .dots { font-size:8px; letter-spacing:14px; color:#30d158; margin-top:0; }
+  .dots .off { color:rgba(255,255,255,.12); }
+  .rest { margin-top:28px; font-size:12px; color:#48484d; letter-spacing:.5px; }
+  .rest button {
+    padding:5px 14px; font-size:12px; margin:0 2px; border-radius:999px;
+    background:transparent; color:#6e6e73;
+  }
+  .rest button.sel { background:rgba(255,255,255,.1); color:#f5f5f7; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="phase"><span class="dot"></span><span id="phaseLabel">Focus - Ready</span></div>
+
+  <div class="ring">
+    <svg viewBox="0 0 230 230">
+      <circle class="track" cx="115" cy="115" r="110"/>
+      <circle class="prog" id="prog" cx="115" cy="115" r="110" stroke-dasharray="691.15" stroke-dashoffset="0"/>
+    </svg>
+    <div class="overlay"><div class="time" id="time">90<span>:00</span></div></div>
+  </div>
+
+  <div class="controls">
+    <button class="primary" id="startBtn">Start Focus</button>
+    <button class="ghost" id="resetBtn">Reset</button>
+  </div>
+
+  <div class="binaural">
+    <button id="binBtn">40 Hz Binaural</button>
+    <div class="bininfo">Headphones required</div>
+  </div>
+
+  <div class="rest">Rest
+    <button data-min="10">10</button>
+    <button data-min="15">15</button>
+    <button data-min="20" class="sel">20</button>
+    <button data-min="30">30</button>
+  </div>
+
+  <div class="meta">
+    <div class="stat"><b id="todayCycles">0</b><span>Today</span></div>
+    <div class="sep"></div>
+    <div class="dots" id="dots"><span class="off">●</span><span class="off">●</span><span class="off">●</span></div>
+    <div class="sep"></div>
+    <div class="stat"><b id="streak">0</b><span>Streak</span></div>
+    <div class="sep"></div>
+    <div class="stat"><b id="totalFocus">0h</b><span>Focus</span></div>
+  </div>
+</div>
+<script>
+const FOCUS = 90*60;
+let REST = 20*60;
+let phase = 'idle', remaining = FOCUS, total = FOCUS;
+let timer = null, cycle = 1, lastTick = null;
+
+const $ = id => document.getElementById(id);
+const timeEl = $('time'), phaseLabel = $('phaseLabel'), prog = $('prog'), startBtn = $('startBtn');
+const CIRC = 691.15;
+
+// ---- persistent daily stats ----
+const todayKey = () => new Date().toISOString().slice(0,10);
+function loadStats(){
+  try { return JSON.parse(localStorage.getItem('focusStats')) || {days:{}, streak:0, totalMin:0}; }
+  catch(e){ return {days:{}, streak:0, totalMin:0}; }
+}
+let stats = loadStats();
+if (!stats.days) stats.days = {};
+const dkey = todayKey();
+if (!stats.days[dkey]) stats.days[dkey] = {cycles:0, min:0};
+function saveStats(){ localStorage.setItem('focusStats', JSON.stringify(stats)); }
+function recalcStreak(){
+  let s=0; const d=new Date();
+  while (true){
+    const k = d.toISOString().slice(0,10);
+    if (stats.days[k] && stats.days[k].cycles>0){ s++; d.setDate(d.getDate()-1); }
+    else if (k===dkey){ d.setDate(d.getDate()-1); } // today not yet counted
+    else break;
+  }
+  stats.streak = s;
+}
+function renderStats(){
+  const d = stats.days[dkey];
+  $('todayCycles').textContent = d.cycles;
+  $('streak').textContent = stats.streak;
+  const h = stats.totalMin/60;
+  $('totalFocus').textContent = (h>=10 ? Math.round(h) : h.toFixed(1)) + 'h';
+  const dots = $('dots');
+  dots.innerHTML = [0,1,2].map(i => '<span'+(i<d.cycles?'':' class="off"')+'>•</span>').join('');
+}
+function logCycle(){
+  const d = stats.days[dkey];
+  d.cycles++; d.min += 90; stats.totalMin += 90;
+  recalcStreak(); saveStats(); renderStats();
+}
+if (!stats.days[dkey]) { recalcStreak(); saveStats(); }
+renderStats();
+
+// ---- timer ----
+function fmt(s){ return Math.floor(s/60) + '<span>:' + String(s%60).padStart(2,'0') + '</span>'; }
+function render(){
+  timeEl.innerHTML = fmt(remaining);
+  const frac = total ? (total - remaining)/total : 0;
+  prog.style.strokeDashoffset = CIRC * frac;
+  document.title = (phase==='idle' ? 'Ultradian Focus' : (phase==='focus'?'FOCUS ':'REST ') + Math.floor(remaining/60) + ':' + String(remaining%60).padStart(2,'0'));
+}
+function beep(){
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    [0,0.35,0.7].forEach(t=>{
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.frequency.value=880; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.001,ctx.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(0.25,ctx.currentTime+t+0.03);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.3);
+      o.start(ctx.currentTime+t); o.stop(ctx.currentTime+t+0.35);
+    });
+  } catch(e){}
+}
+function notify(title, body){
+  if ('Notification' in window && Notification.permission==='granted') new Notification(title,{body});
+}
+function setPhase(p){
+  phase = p;
+  document.body.classList.toggle('resting', p==='rest');
+  if (p==='focus'){ total=FOCUS; remaining=FOCUS; phaseLabel.textContent='Deep focus - cycle '+cycle; startBtn.textContent='Pause'; }
+  if (p==='rest'){ total=REST; remaining=REST; phaseLabel.textContent='Deliberate rest'; startBtn.textContent='Pause'; }
+  if (p==='idle'){ total=FOCUS; remaining=FOCUS; startBtn.textContent='Start Focus'; }
+  render();
+}
+function tick(){
+  const now = Date.now();
+  if (lastTick !== null) remaining -= Math.round((now-lastTick)/1000);
+  lastTick = now;
+  if (remaining <= 0){
+    remaining = 0; clearInterval(timer); timer=null; lastTick=null;
+    beep();
+    if (phase==='focus'){
+      logCycle();
+      notify('Focus block complete','90 minutes logged. Cycle '+cycle+' done - take your rest.');
+      setPhase('rest'); start();
+    } else {
+      cycle++;
+      notify('Rest complete','Starting focus cycle '+cycle+'.');
+      setPhase('focus'); start();
+    }
+  }
+  render();
+}
+function start(){ if(timer) return; lastTick=Date.now(); timer=setInterval(tick,1000); }
+startBtn.onclick = () => {
+  if (phase==='idle'){ setPhase('focus'); start();
+    if ('Notification' in window && Notification.permission==='default') Notification.requestPermission();
+  } else if (timer){ clearInterval(timer); timer=null; lastTick=null; startBtn.textContent='Resume'; }
+  else { start(); startBtn.textContent='Pause'; }
+};
+$('resetBtn').onclick = () => { clearInterval(timer); timer=null; lastTick=null; setPhase('idle'); };
+document.querySelectorAll('.rest button').forEach(b=>{
+  b.onclick = () => {
+    REST = parseInt(b.dataset.min)*60;
+    localStorage.setItem('focusRest', REST);
+    document.querySelectorAll('.rest button').forEach(x=>x.classList.remove('sel'));
+    b.classList.add('sel');
+    if (phase==='rest'){ clearInterval(timer); timer=null; setPhase('rest'); }
+  };
+});
+const savedRest = localStorage.getItem('focusRest');
+if (savedRest){
+  REST = parseInt(savedRest);
+  document.querySelectorAll('.rest button').forEach(x=>{
+    x.classList.toggle('sel', parseInt(x.dataset.min)*60 === REST);
+  });
+}
+render();
+
+// ---- binaural 40 Hz generator ----
+let binCtx = null, binNodes = null;
+function startBinaural(){
+  if (!binCtx) binCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if (binCtx.state === 'suspended') binCtx.resume();
+  binNodes = {};
+  binNodes.merger = binCtx.createChannelMerger(2);
+  binNodes.gain = binCtx.createGain();
+  binNodes.gain.gain.value = 0;
+  binNodes.merger.connect(binNodes.gain);
+  binNodes.gain.connect(binCtx.destination);
+  binNodes.oscs = [[200,0],[240,1]].map(([f,ch])=>{
+    const o = binCtx.createOscillator();
+    o.type = 'sine'; o.frequency.value = f;
+    o.connect(binNodes.merger, 0, ch);
+    o.start();
+    return o;
+  });
+  binNodes.gain.gain.linearRampToValueAtTime(0.25, binCtx.currentTime + 1.5); // smooth fade-in
+}
+function stopBinaural(){
+  if (!binNodes) return;
+  const n = binNodes; binNodes = null;
+  n.gain.gain.linearRampToValueAtTime(0, binCtx.currentTime + 1); // smooth fade-out
+  setTimeout(()=>{ n.oscs.forEach(o=>o.stop()); n.merger.disconnect(); n.gain.disconnect(); }, 1200);
+}
+const binBtn = $('binBtn');
+binBtn.onclick = () => {
+  if (binNodes){ stopBinaural(); binBtn.textContent = '40 Hz Binaural'; binBtn.classList.remove('on'); }
+  else { startBinaural(); binBtn.textContent = 'Stop Binaural'; binBtn.classList.add('on');
+    if ('Notification' in window && Notification.permission==='default') Notification.requestPermission();
+  }
+};
+</script>
+</body>
+</html>
